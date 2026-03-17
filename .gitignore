@@ -1,0 +1,26 @@
+# OS/IDE
+.DS_Store
+.vscode/
+
+# env
+.env
+.venv/
+
+# python
+__pycache__/
+*.py[cod]
+
+# airflow
+.airflow/
+airflow.cfg
+
+# db
+*.db
+*.db-shm
+*.db-wal
+
+# data
+data/raw/
+
+# config
+config/settings.yaml
