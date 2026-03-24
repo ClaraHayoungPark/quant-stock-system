@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import subprocess
 import sys
 from pathlib import Path
 
@@ -8,19 +7,13 @@ import pendulum
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-SRC_DIR = PROJECT_ROOT / "src"
-
-
-def run_script(script_name: str) -> None:
-    script_path = SRC_DIR / script_name
-    subprocess.run(
-        [sys.executable, str(script_path)],
-        cwd=str(SRC_DIR),
-        check=True,
-    )
-
+from fetch_data import main as fetch_main
+from build_features import main as build_main
+from score_stocks import main as score_main
+from select_stocks import main as select_main
+from send_email import main as send_main
 
 with DAG(
     dag_id="quant_stock_pipeline",
@@ -30,34 +23,10 @@ with DAG(
     catchup=False,
     tags=["quant", "stocks", "daily"],
 ) as dag:
-    fetch_data = PythonOperator(
-        task_id="fetch_price_data",
-        python_callable=run_script,
-        op_kwargs={"script_name": "fetch_data.py"},
-    )
+    t1 = PythonOperator(task_id="fetch_price_data", python_callable=fetch_main)
+    t2 = PythonOperator(task_id="build_features", python_callable=build_main)
+    t3 = PythonOperator(task_id="score_stocks", python_callable=score_main)
+    t4 = PythonOperator(task_id="select_top_stocks", python_callable=select_main)
+    t5 = PythonOperator(task_id="send_email_report", python_callable=send_main)
 
-    build_features = PythonOperator(
-        task_id="build_features",
-        python_callable=run_script,
-        op_kwargs={"script_name": "build_features.py"},
-    )
-
-    score_stocks = PythonOperator(
-        task_id="score_stocks",
-        python_callable=run_script,
-        op_kwargs={"script_name": "score_stocks.py"},
-    )
-
-    select_top_stocks = PythonOperator(
-        task_id="select_top_stocks",
-        python_callable=run_script,
-        op_kwargs={"script_name": "select_stocks.py"},
-    )
-
-    send_email = PythonOperator(
-        task_id="send_email_report",
-        python_callable=run_script,
-        op_kwargs={"script_name": "send_email.py"},
-    )
-
-    fetch_data >> build_features >> score_stocks >> select_top_stocks >> send_email
+    t1 >> t2 >> t3 >> t4 >> t5
